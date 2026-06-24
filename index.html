@@ -178,6 +178,97 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .loading-card{background:white;border-radius:var(--radius-md);border:1px solid var(--gray-100);padding:2rem;text-align:center;color:var(--text-dim);}
 .access-denied{text-align:center;padding:4rem 2rem;}
 .info-box{background:var(--blue-light);border:1px solid var(--blue);border-radius:var(--radius-md);padding:1rem;font-size:12px;color:var(--blue-dark);margin-bottom:1rem;line-height:1.6;}
+
+/* ===== MÓVIL RESPONSIVE ===== */
+/* Botón hamburguesa */
+.hamburger{display:none;background:none;border:none;cursor:pointer;padding:6px;border-radius:var(--radius-sm);}
+.hamburger span{display:block;width:22px;height:2px;background:var(--text);margin:5px 0;border-radius:2px;transition:all 0.25s;}
+/* Overlay sidebar móvil */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:49;}
+.sidebar-overlay.open{display:block;}
+
+@media(max-width:768px){
+  /* LOGIN */
+  .login-wrap{padding:1rem;}
+  .login-card{width:100%;max-width:360px;padding:1.5rem;}
+  .login-title{font-size:20px;}
+
+  /* APP SHELL */
+  .app{flex-direction:column;}
+
+  /* SIDEBAR — se convierte en drawer lateral */
+  .sidebar{
+    position:fixed;top:0;left:0;height:100vh;z-index:50;
+    transform:translateX(-100%);transition:transform 0.25s ease;
+    width:240px;
+  }
+  .sidebar.open{transform:translateX(0);}
+
+  /* TOPBAR MÓVIL */
+  .topbar{padding:10px 1rem;gap:10px;}
+  .topbar-title{font-size:14px;}
+  .topbar-sub{font-size:11px;}
+  .hamburger{display:flex;flex-direction:column;justify-content:center;margin-right:4px;}
+
+  /* CONTENT */
+  .content{padding:1rem;}
+
+  /* STATS GRID — 2 columnas en móvil */
+  .stats-grid{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:1rem;}
+  .stat-value{font-size:24px;}
+
+  /* MATCH ROW */
+  .match-row{gap:6px;padding:10px;}
+  .match-team-name{font-size:12px;}
+  .match-score-num{font-size:18px;letter-spacing:2px;}
+
+  /* TABLAS — scroll horizontal */
+  .card{padding:1rem;overflow-x:auto;}
+  .table{min-width:420px;}
+
+  /* FORMULARIOS */
+  .form-row{grid-template-columns:1fr;}
+  .score-input-row{gap:6px;}
+  .score-input{font-size:22px;}
+
+  /* MODAL */
+  .modal{width:95vw;padding:1.25rem;margin:0 auto;}
+  .modal-overlay{align-items:flex-end;padding-bottom:0;}
+  .modal{border-bottom-left-radius:0;border-bottom-right-radius:0;max-height:90vh;}
+
+  /* VOTE GRID */
+  .vote-grid{grid-template-columns:1fr;}
+
+  /* FICHA */
+  .ficha-header{padding:1rem;gap:1rem;}
+  .ficha-ava{width:52px;height:52px;font-size:16px;}
+  .ficha-stats-row{grid-template-columns:repeat(3,1fr);gap:8px;}
+  .ficha-stat{padding:0.75rem;}
+  .ficha-stat-val{font-size:22px;}
+
+  /* PIZARRA */
+  .pizarra-layout{flex-direction:column;height:auto;}
+  .pizarra-controls{width:100%;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+  .pizarra-controls .ctrl-section{width:100%;margin:4px 0 2px;}
+  .fmtn-btn{width:auto;flex:1;min-width:80px;font-size:11px;padding:6px 8px;}
+  .pizarra-main{width:100%;overflow-x:auto;}
+  .pizarra-toolbar{flex-wrap:wrap;gap:6px;}
+  .draw-btn{font-size:11px;padding:5px 10px;}
+
+  /* TOAST */
+  .toast{bottom:1rem;right:1rem;left:1rem;text-align:center;}
+
+  /* BOTONES */
+  .btn{font-size:12px;padding:7px 12px;}
+  .role-badge{font-size:10px;padding:3px 8px;}
+}
+
+@media(max-width:380px){
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .login-card{padding:1.25rem;}
+  .ficha-stats-row{gap:6px;}
+  .ficha-stat-val{font-size:20px;}
+}
 </style>
 </head>
 <body>
@@ -236,7 +327,12 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
   </div>
   <div class="main">
     <div class="topbar">
-      <div><div class="topbar-title" id="topbarTitle">Resumen</div><div class="topbar-sub" id="topbarSub">Panel principal</div></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="hamburger" id="btnHamburger" onclick="toggleSidebar()" aria-label="Menú">
+          <span></span><span></span><span></span>
+        </button>
+        <div><div class="topbar-title" id="topbarTitle">Resumen</div><div class="topbar-sub" id="topbarSub">Panel principal</div></div>
+      </div>
       <span class="role-badge" id="roleBadge">—</span>
     </div>
     <div class="content" id="pageContent"></div>
@@ -313,6 +409,7 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
   </div>
 </div>
 
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -897,6 +994,23 @@ window.closeModal=function(id){document.getElementById(id).classList.remove('ope
 window.toast=function(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(type?' '+type:'')+' show';setTimeout(()=>t.classList.remove('show'),3200);};
 document.addEventListener('click',e=>{['modalPartido','modalJugadora'].forEach(id=>{const o=document.getElementById(id);if(e.target===o)window.closeModal(id);});});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('loginWrap').style.display==='flex')window.doLogin();});
+
+// ===== SIDEBAR MÓVIL =====
+window.toggleSidebar=function(){
+  const sb=document.querySelector('.sidebar');
+  const ov=document.getElementById('sidebarOverlay');
+  sb.classList.toggle('open');
+  ov.classList.toggle('open');
+};
+// Cerrar sidebar al hacer clic en nav item en móvil
+document.querySelectorAll('.nav-item').forEach(el=>{
+  el.addEventListener('click',()=>{
+    if(window.innerWidth<=768){
+      document.querySelector('.sidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('open');
+    }
+  });
+});
 </script>
 </body>
 </html>
