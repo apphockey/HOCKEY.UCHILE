@@ -179,6 +179,12 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .access-denied{text-align:center;padding:4rem 2rem;}
 .info-box{background:var(--blue-light);border:1px solid var(--blue);border-radius:var(--radius-md);padding:1rem;font-size:12px;color:var(--blue-dark);margin-bottom:1rem;line-height:1.6;}
 
+.gol-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);background:white;}
+.gol-row.activa{border-color:var(--blue);background:var(--blue-light);}
+.gol-num-input{width:52px;font-size:16px;font-weight:700;text-align:center;padding:4px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);color:var(--blue);}
+.partido-detalle-gol{display:inline-flex;align-items:center;gap:4px;background:#E1F5EE;color:#085041;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;margin:2px;}
+.partido-detalle-nom{display:inline-flex;align-items:center;gap:4px;background:var(--blue-light);color:var(--blue-dark);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;margin:2px;}
+
 /* PRÓXIMO PARTIDO */
 .proximo-banner{background:linear-gradient(135deg,var(--blue-dark),var(--blue));border-radius:var(--radius-md);padding:1.5rem;color:white;margin-bottom:1rem;}
 .proximo-vs{font-size:22px;font-weight:700;margin:8px 0;}
@@ -370,7 +376,9 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
     <input type="hidden" id="m-id"/>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Equipo UCH</label>
-        <select class="form-input" id="m-equipo"><option>Damas A</option><option>Damas B</option><option>Sub-18</option></select></div>
+        <select class="form-input" id="m-equipo" onchange="cargarJugadorasPartido()">
+          <option>Damas A</option><option>Damas B</option><option>Sub-18</option>
+        </select></div>
       <div class="form-group"><label class="form-label">Rival</label>
         <input class="form-input" id="m-rival" placeholder="Ej: PUC"/></div>
     </div>
@@ -389,9 +397,26 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
       <div><div class="form-label" style="text-align:center;">Rival</div>
         <input class="form-input score-input" type="number" min="0" value="0" id="m-gRival"/></div>
     </div>
+
+    <!-- NÓMINA DEL PARTIDO -->
+    <div style="margin-bottom:8px;">
+      <label class="form-label">📋 Nómina del partido <span style="font-weight:400;color:var(--text-dim);">(selecciona las jugadoras que participaron)</span></label>
+      <div id="m-nomina-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px;max-height:180px;overflow-y:auto;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);padding:8px;">
+        <div style="color:var(--text-dim);font-size:12px;grid-column:span 2;text-align:center;padding:8px;">Selecciona el equipo para ver las jugadoras</div>
+      </div>
+    </div>
+
+    <!-- GOLEADORAS -->
+    <div style="margin-bottom:12px;">
+      <label class="form-label">⚽ Goleadoras <span style="font-weight:400;color:var(--text-dim);">(indica cuántos goles hizo cada una)</span></label>
+      <div id="m-goles-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px;max-height:180px;overflow-y:auto;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);padding:8px;">
+        <div style="color:var(--text-dim);font-size:12px;grid-column:span 2;text-align:center;padding:8px;">Selecciona las jugadoras de la nómina primero</div>
+      </div>
+    </div>
+
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modalPartido')">Cancelar</button>
-      <button class="btn btn-blue" id="btnSavePartido" onclick="guardarPartido()">Guardar</button>
+      <button class="btn btn-blue" id="btnSavePartido" onclick="guardarPartido()">Guardar partido</button>
     </div>
   </div>
 </div>
@@ -476,7 +501,7 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import{getAuth,signInWithEmailAndPassword,signOut,createUserWithEmailAndPassword,onAuthStateChanged}
   from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import{getFirestore,collection,doc,addDoc,setDoc,getDoc,getDocs,deleteDoc,updateDoc,onSnapshot,serverTimestamp}
+import{getFirestore,collection,doc,addDoc,setDoc,getDoc,getDocs,deleteDoc,updateDoc,onSnapshot,serverTimestamp,increment as incrementField}
   from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const fbApp=initializeApp({
@@ -634,28 +659,61 @@ function renderPartidos(){
     const ps=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
     const el=document.getElementById('listP');if(!el)return;
     if(!ps.length){el.innerHTML='<div class="empty-state">No hay partidos aún.</div>';return;}
-    el.innerHTML=ps.map(p=>`
-      <div class="match-row">
-        <div><div class="match-team-name">UCH ${p.equipo}</div><div class="match-team-cat">${p.cond||''}</div></div>
-        <div><div class="match-score-num">${p.gUCH} – ${p.gRival}</div>
-          <div style="text-align:center;margin:3px 0;">${badge(p)}</div>
-          <div class="match-score-date">${p.fecha||''} · ${p.sede||''}</div></div>
-        <div style="text-align:right;">
-          <div class="match-team-name">${p.rival}</div>
-          ${isC?`<div style="margin-top:6px;display:flex;gap:4px;justify-content:flex-end;">
-            <button class="btn" style="padding:4px 8px;font-size:11px;" onclick="editarPartido('${p.id}')">✏️</button>
-            <button class="btn btn-danger" style="padding:4px 8px;font-size:11px;" onclick="eliminarPartido('${p.id}')">🗑️</button>
-          </div>`:''}
+    el.innerHTML=ps.map(p=>{
+      const goles=p.goles||{};
+      const nomina=p.nomina||[];
+      const golesEntries=Object.entries(goles).filter(([,v])=>v>0);
+      return`
+      <div style="border:1px solid var(--gray-100);border-radius:var(--radius-md);padding:12px;margin-bottom:10px;background:white;">
+        <div class="match-row" style="border:none;padding:0;margin-bottom:${golesEntries.length||nomina.length?'10px':'0'};">
+          <div><div class="match-team-name">UCH ${p.equipo}</div><div class="match-team-cat">${p.cond||''}</div></div>
+          <div><div class="match-score-num">${p.gUCH} – ${p.gRival}</div>
+            <div style="text-align:center;margin:3px 0;">${badge(p)}</div>
+            <div class="match-score-date">${p.fecha||''} · ${p.sede||''}</div></div>
+          <div style="text-align:right;">
+            <div class="match-team-name">${p.rival}</div>
+            ${isC?`<div style="margin-top:6px;display:flex;gap:4px;justify-content:flex-end;">
+              <button class="btn" style="padding:4px 8px;font-size:11px;" onclick="editarPartido('${p.id}')">✏️</button>
+              <button class="btn btn-danger" style="padding:4px 8px;font-size:11px;" onclick="eliminarPartido('${p.id}')">🗑️</button>
+            </div>`:''}
+          </div>
         </div>
-      </div>`).join('');
+        ${golesEntries.length>0?`<div style="margin-bottom:6px;">
+          <span style="font-size:11px;color:var(--text-dim);font-weight:600;">⚽ GOLES:</span>
+          <div style="margin-top:4px;" id="goles-${p.id}">
+            ${golesEntries.map(([jid,g])=>`<span class="partido-detalle-gol" data-jid="${jid}" data-g="${g}">Cargando...</span>`).join('')}
+          </div>
+        </div>`:''}
+        ${nomina.length>0?`<div>
+          <span style="font-size:11px;color:var(--text-dim);font-weight:600;">📋 NÓMINA (${nomina.length}):</span>
+          <div style="margin-top:4px;" id="nomina-${p.id}">
+            ${nomina.map(jid=>`<span class="partido-detalle-nom" data-jid="${jid}">Cargando...</span>`).join('')}
+          </div>
+        </div>`:''}
+      </div>`}).join('');
+    // Resolver nombres de jugadoras
+    resolverNombresPartidos(ps);
   });
 }
-window.abrirNuevoPartido=function(){
+// Cache jugadoras para el modal
+let _jugadorasCache=[];
+
+async function getJugadoras(){
+  if(_jugadorasCache.length>0)return _jugadorasCache;
+  const snap=await getDocs(collection(db,'jugadoras'));
+  _jugadorasCache=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>parseInt(a.num)-parseInt(b.num));
+  return _jugadorasCache;
+}
+
+window.abrirNuevoPartido=async function(){
   document.getElementById('mpTitle').textContent='Registrar partido';
   ['m-id','m-rival','m-sede'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('m-gUCH').value='0';document.getElementById('m-gRival').value='0';
+  document.getElementById('m-equipo').value='Damas A';
+  await cargarJugadorasPartido();
   openModal('modalPartido');
 };
+
 window.editarPartido=async function(id){
   const s=await getDoc(doc(db,'partidos',id));if(!s.exists())return;
   const p=s.data();
@@ -668,30 +726,182 @@ window.editarPartido=async function(id){
   document.getElementById('m-cond').value=p.cond||'Local';
   document.getElementById('m-gUCH').value=p.gUCH||0;
   document.getElementById('m-gRival').value=p.gRival||0;
+  await cargarJugadorasPartido(p.nomina||[], p.goles||{});
   openModal('modalPartido');
 };
+
+window.cargarJugadorasPartido=async function(nominaActual=[], golesActual={}){
+  const equipo=document.getElementById('m-equipo').value;
+  const jugadoras=await getJugadoras();
+  const del_equipo=jugadoras.filter(j=>j.equipo===equipo);
+
+  // Grid nómina
+  const gNomina=document.getElementById('m-nomina-grid');
+  gNomina.innerHTML=del_equipo.length===0
+    ? '<div style="color:var(--text-dim);font-size:12px;grid-column:span 2;text-align:center;padding:8px;">No hay jugadoras en este equipo</div>'
+    : del_equipo.map(j=>`
+        <label class="nomina-check${nominaActual.includes(j.id)?' sel':''}" id="mn-${j.id}" onclick="actualizarGolesGrid()">
+          <input type="checkbox" value="${j.id}" ${nominaActual.includes(j.id)?'checked':''} style="display:none;"/>
+          <div class="nomina-num" style="width:24px;height:24px;font-size:10px;">${j.num}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${j.nombre||j.name||''}</div>
+            <div style="font-size:10px;color:var(--text-dim);">${j.pos||''}</div>
+          </div>
+          <span style="color:${nominaActual.includes(j.id)?'var(--blue)':'transparent'};font-size:14px;">✓</span>
+        </label>`).join('');
+
+  // Eventos para checkboxes nómina
+  del_equipo.forEach(j=>{
+    const lbl=document.getElementById('mn-'+j.id);
+    if(!lbl)return;
+    lbl.addEventListener('click',()=>{
+      const chk=lbl.querySelector('input');
+      chk.checked=!chk.checked;
+      lbl.classList.toggle('sel',chk.checked);
+      const tick=lbl.querySelector('span:last-child');
+      if(tick)tick.style.color=chk.checked?'var(--blue)':'transparent';
+      actualizarGolesGrid();
+    });
+  });
+
+  actualizarGolesGrid(golesActual);
+};
+
+window.actualizarGolesGrid=function(golesActual={}){
+  const seleccionadas=Array.from(document.querySelectorAll('#m-nomina-grid input:checked')).map(c=>c.value);
+  const gGrid=document.getElementById('m-goles-grid');
+  if(!gGrid)return;
+  if(seleccionadas.length===0){
+    gGrid.innerHTML='<div style="color:var(--text-dim);font-size:12px;grid-column:span 2;text-align:center;padding:8px;">Selecciona jugadoras de la nómina primero</div>';
+    return;
+  }
+  const jugadoras=_jugadorasCache;
+  gGrid.innerHTML=seleccionadas.map(id=>{
+    const j=jugadoras.find(x=>x.id===id);if(!j)return'';
+    const g=golesActual[id]||0;
+    return`<div class="gol-row${g>0?' activa':''}" id="grow-${id}">
+      <div class="nomina-num" style="width:26px;height:26px;font-size:10px;">${j.num}</div>
+      <div style="flex:1;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${(j.nombre||j.name||'').split(' ')[0]}</div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <button onclick="cambiarGol('${id}',-1)" style="width:24px;height:24px;border:1.5px solid var(--gray-200);border-radius:50%;background:white;cursor:pointer;font-size:14px;line-height:1;">−</button>
+        <input class="gol-num-input" type="number" min="0" max="20" value="${g}" id="gol-${id}" onchange="actualizarGolRow('${id}')"/>
+        <button onclick="cambiarGol('${id}',1)" style="width:24px;height:24px;border:1.5px solid var(--blue);border-radius:50%;background:var(--blue);color:white;cursor:pointer;font-size:14px;line-height:1;">+</button>
+      </div>
+    </div>`;}).join('');
+};
+
+window.cambiarGol=function(id,delta){
+  const inp=document.getElementById('gol-'+id);
+  if(!inp)return;
+  const v=Math.max(0,parseInt(inp.value||0)+delta);
+  inp.value=v;
+  actualizarGolRow(id);
+};
+
+window.actualizarGolRow=function(id){
+  const inp=document.getElementById('gol-'+id);
+  const row=document.getElementById('grow-'+id);
+  if(inp&&row) row.classList.toggle('activa',parseInt(inp.value||0)>0);
+};
+
 window.eliminarPartido=async function(id){
   if(!confirm('¿Eliminar este partido?'))return;
-  await deleteDoc(doc(db,'partidos',id));toast('Partido eliminado');
+  // Revertir estadísticas
+  const snap=await getDoc(doc(db,'partidos',id));
+  if(snap.exists()){
+    const p=snap.data();
+    await revertirStats(p.nomina||[],p.goles||{});
+  }
+  await deleteDoc(doc(db,'partidos',id));
+  toast('Partido eliminado');
 };
+
 window.guardarPartido=async function(){
   const id=document.getElementById('m-id').value;
   const rival=document.getElementById('m-rival').value.trim();
   if(!rival){toast('Ingresa el nombre del rival','error');return;}
-  const data={equipo:document.getElementById('m-equipo').value,rival,
-    fecha:document.getElementById('m-fecha').value,sede:document.getElementById('m-sede').value.trim(),
+
+  // Recoger nómina seleccionada
+  const nomina=Array.from(document.querySelectorAll('#m-nomina-grid input:checked')).map(c=>c.value);
+
+  // Recoger goles por jugadora
+  const goles={};
+  nomina.forEach(jid=>{
+    const inp=document.getElementById('gol-'+jid);
+    const v=parseInt(inp?.value||0);
+    if(v>0)goles[jid]=v;
+  });
+
+  const data={
+    equipo:document.getElementById('m-equipo').value,
+    rival,
+    fecha:document.getElementById('m-fecha').value,
+    sede:document.getElementById('m-sede').value.trim(),
     cond:document.getElementById('m-cond').value,
     gUCH:parseInt(document.getElementById('m-gUCH').value)||0,
     gRival:parseInt(document.getElementById('m-gRival').value)||0,
-    updatedAt:serverTimestamp()};
-  const btn=document.getElementById('btnSavePartido');btn.disabled=true;
+    nomina,
+    goles,
+    updatedAt:serverTimestamp()
+  };
+
+  const btn=document.getElementById('btnSavePartido');
+  btn.disabled=true;btn.innerHTML='<span class="spinner-inline"></span>Guardando...';
+
   try{
-    if(id){await updateDoc(doc(db,'partidos',id),data);toast('Partido actualizado');}
-    else{await addDoc(collection(db,'partidos'),{...data,createdAt:serverTimestamp()});toast('Partido registrado');}
+    if(id){
+      // Si editamos: revertir stats anteriores primero
+      const snapOld=await getDoc(doc(db,'partidos',id));
+      if(snapOld.exists()){
+        const old=snapOld.data();
+        await revertirStats(old.nomina||[],old.goles||{});
+      }
+      await updateDoc(doc(db,'partidos',id),data);
+      toast('Partido actualizado');
+    } else {
+      await addDoc(collection(db,'partidos'),{...data,createdAt:serverTimestamp()});
+      toast('Partido registrado');
+    }
+    // Acumular nuevas stats
+    await acumularStats(nomina,goles);
     closeModal('modalPartido');
-  }catch(e){toast('Error al guardar','error');}
-  btn.disabled=false;
+    _jugadorasCache=[];// limpiar cache
+  }catch(e){
+    console.error(e);
+    toast('Error al guardar','error');
+  }
+  btn.disabled=false;btn.innerHTML='Guardar partido';
 };
+
+// Acumular goles y nominaciones en ficha jugadora
+async function acumularStats(nomina,goles){
+  const batch=[];
+  nomina.forEach(jid=>{
+    const golesJ=goles[jid]||0;
+    batch.push(
+      updateDoc(doc(db,'jugadoras',jid),{
+        nominaciones: (window._incField||incrementField)(1),
+        goles: (window._incField||incrementField)(golesJ)
+      }).catch(()=>{})
+    );
+  });
+  await Promise.all(batch);
+}
+
+// Revertir stats al editar o eliminar
+async function revertirStats(nomina,goles){
+  const batch=[];
+  nomina.forEach(jid=>{
+    const golesJ=goles[jid]||0;
+    batch.push(
+      updateDoc(doc(db,'jugadoras',jid),{
+        nominaciones: (window._incField||incrementField)(-1),
+        goles: (window._incField||incrementField)(-golesJ)
+      }).catch(()=>{})
+    );
+  });
+  await Promise.all(batch);
+}
 
 // ===== PRÓXIMO PARTIDO =====
 async function renderProximo(){
@@ -846,16 +1056,46 @@ window.eliminarProximo=async function(){
   renderProximo();
 };
 
+// Resolver nombres de jugadoras en el listado de partidos
+async function resolverNombresPartidos(ps){
+  const jugadoras=await getJugadoras();
+  const mapaJ={};jugadoras.forEach(j=>mapaJ[j.id]=j);
+  ps.forEach(p=>{
+    const goles=p.goles||{};
+    const nomina=p.nomina||[];
+    // Goles
+    Object.entries(goles).filter(([,v])=>v>0).forEach(([jid,g])=>{
+      document.querySelectorAll(`#goles-${p.id} [data-jid="${jid}"]`).forEach(el=>{
+        const j=mapaJ[jid];
+        el.textContent=j?`${(j.nombre||j.name||'').split(' ')[0]} ×${g}`:`#${jid} ×${g}`;
+      });
+    });
+    // Nómina
+    nomina.forEach(jid=>{
+      document.querySelectorAll(`#nomina-${p.id} [data-jid="${jid}"]`).forEach(el=>{
+        const j=mapaJ[jid];
+        el.textContent=j?`#${j.num} ${(j.nombre||j.name||'').split(' ')[0]}`:`#${jid}`;
+      });
+    });
+  });
+}
+
 // ===== FICHA =====
 async function renderFicha(){
   set('<div class="loading-card">Cargando ficha...</div>');
   let j=null;
-  if(ROLE==='player'){
-    const snap=await getDocs(collection(db,'jugadoras'));
-    j=snap.docs.map(d=>({id:d.id,...d.data()})).find(x=>x.uid===ME.uid);
-  }
+  const snapJ=await getDocs(collection(db,'jugadoras'));
+  const todas=snapJ.docs.map(d=>({id:d.id,...d.data()}));
+  if(ROLE==='player') j=todas.find(x=>x.uid===ME.uid);
   const n=MEDATA?.nombre||ME.email;
   const ini=n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  const goles=j?.goles||0;
+  const noms=j?.nominaciones||0;
+  // Partidos donde participó
+  const snapP=await getDocs(collection(db,'partidos'));
+  const partidos=snapP.docs.map(d=>({id:d.id,...d.data()}))
+    .filter(p=>j&&(p.nomina||[]).includes(j.id))
+    .sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
   set(`<div class="ficha-header">
     <div class="ficha-ava">${ini}</div>
     <div>
@@ -864,11 +1104,28 @@ async function renderFicha(){
     </div>
   </div>
   <div class="ficha-stats-row">
-    <div class="ficha-stat"><div class="ficha-stat-val">${j?.goles||0}</div><div class="ficha-stat-lbl">Goles</div></div>
-    <div class="ficha-stat"><div class="ficha-stat-val">${j?.asist||0}</div><div class="ficha-stat-lbl">Asistencias</div></div>
-    <div class="ficha-stat"><div class="ficha-stat-val" style="color:var(--red);">${j?.tarjetas||0}</div><div class="ficha-stat-lbl">Tarjetas</div></div>
+    <div class="ficha-stat"><div class="ficha-stat-val">${goles}</div><div class="ficha-stat-lbl">⚽ Goles</div></div>
+    <div class="ficha-stat"><div class="ficha-stat-val">${noms}</div><div class="ficha-stat-lbl">📋 Nominaciones</div></div>
+    <div class="ficha-stat"><div class="ficha-stat-val">${partidos.length}</div><div class="ficha-stat-lbl">🏑 Partidos</div></div>
   </div>
-  <div class="card"><div class="empty-state">Las estadísticas individuales se acumularán a medida que el/la entrenador/a registre los partidos.</div></div>`);}
+  <div class="card">
+    <div class="card-title" style="margin-bottom:1rem;">Historial de partidos</div>
+    ${partidos.length===0
+      ?'<div class="empty-state">Aún no hay partidos registrados con tu participación.</div>'
+      :partidos.map(p=>{
+        const misGoles=(p.goles||{})[j?.id||'']||0;
+        return`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-100);">
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:600;">vs ${p.rival}</div>
+            <div style="font-size:11px;color:var(--text-dim);">${p.fecha||''} · UCH ${p.equipo}</div>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--blue);">${p.gUCH}–${p.gRival}</div>
+          ${badge(p)}
+          ${misGoles>0?`<span class="partido-detalle-gol">⚽ ×${misGoles}</span>`:''}
+        </div>`;}).join('')}
+  </div>`);
+}
+
 
 // ===== VOTACIÓN =====
 async function renderVotacion(){
