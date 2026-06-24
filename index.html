@@ -631,66 +631,123 @@ window.goPage=function(page){
 // ===== RESUMEN =====
 async function renderHome(){
   set('<div class="loading-card">Cargando...</div>');
-  const snap=await getDocs(collection(db,'partidos'));
-  const ps=snap.docs.map(d=>({id:d.id,...d.data()}));
-  const wins=ps.filter(p=>p.gUCH>p.gRival).length;
-  const draws=ps.filter(p=>p.gUCH===p.gRival).length;
-  const losses=ps.filter(p=>p.gUCH<p.gRival).length;
+
+  // Cargar datos en paralelo
+  const [snapP, snapJ, snapProx] = await Promise.all([
+    getDocs(collection(db,'partidos')),
+    getDocs(collection(db,'jugadoras')),
+    getDoc(doc(db,'config','proximoPartido'))
+  ]);
+
+  const ps = snapP.docs.map(d=>({id:d.id,...d.data()}));
+  const jugadoras = snapJ.docs.map(d=>({id:d.id,...d.data()}));
+  const wins   = ps.filter(p=>p.gUCH>p.gRival).length;
+  const draws  = ps.filter(p=>p.gUCH===p.gRival).length;
+  const losses = ps.filter(p=>p.gUCH<p.gRival).length;
+  const ult    = ps.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))[0];
+  const isC    = ROLE==='coach';
+
+  // Goleadoras top 3
+  const top3 = [...jugadoras].filter(j=>j.goles>0).sort((a,b)=>(b.goles||0)-(a.goles||0)).slice(0,3);
+  const totalGoles = jugadoras.reduce((s,j)=>s+(j.goles||0),0);
+
+  // Próximo partido
+  const proximo = snapProx.exists()&&snapProx.data().rival ? snapProx.data() : null;
+
   // Notificación nómina para jugadoras
   let alertaNomina='';
-  if(ROLE==='player'){
-    const snapP=await getDoc(doc(db,'config','proximoPartido'));
-    if(snapP.exists()&&snapP.data().rival){
-      const pp=snapP.data();
-      const nomina=pp.nomina||[];
-      // Buscar uid de la jugadora
-      const snapJ=await getDocs(collection(db,'jugadoras'));
-      const miJ=snapJ.docs.map(d=>({id:d.id,...d.data()})).find(j=>j.uid===ME.uid);
-      if(miJ){
-        const convocada=nomina.includes(miJ.id);
-        alertaNomina=`<div class="nomina-alert ${convocada?'convocada':'no-convocada'}">
-          <div class="nomina-alert-icon">${convocada?'🎽':'⏳'}</div>
-          <div>
-            <div class="nomina-alert-title">${convocada?'¡Estás convocada!':'Próximo partido publicado'}</div>
-            <div class="nomina-alert-sub">${convocada
-              ?`Estás en la nómina para el partido vs ${pp.rival} · ${pp.fecha||''} ${pp.hora?'· '+pp.hora+' hrs':''}`
-              :`vs ${pp.rival} · ${pp.fecha||''} ${pp.hora?'· '+pp.hora+' hrs':''}. Aún no estás en la nómina.`}
-            </div>
+  if(ROLE==='player' && proximo){
+    const nomina = proximo.nomina||[];
+    const miJ = jugadoras.find(j=>j.uid===ME.uid);
+    if(miJ){
+      const convocada = nomina.includes(miJ.id);
+      alertaNomina=`<div class="nomina-alert ${convocada?'convocada':'no-convocada'}">
+        <div class="nomina-alert-icon">${convocada?'🎽':'⏳'}</div>
+        <div>
+          <div class="nomina-alert-title">${convocada?'¡Estás convocada!':'Próximo partido publicado'}</div>
+          <div class="nomina-alert-sub">${convocada
+            ?`Nómina confirmada vs ${proximo.rival} · ${proximo.fecha||''} ${proximo.hora?'· '+proximo.hora+' hrs':''}`
+            :`vs ${proximo.rival} · ${proximo.fecha||''} ${proximo.hora?'· '+proximo.hora+' hrs':''}. Aún no estás en la nómina.`}
           </div>
-          <button class="btn" style="margin-left:auto;flex-shrink:0;" onclick="goPage('proximo')">Ver detalle</button>
-        </div>`;
-      }
+        </div>
+        <button class="btn" style="margin-left:auto;flex-shrink:0;" onclick="goPage('proximo')">Ver detalle</button>
+      </div>`;
     }
   }
-  const isC=ROLE==='coach';
-  set(`${alertaNomina}<div class="stats-grid">
+
+  set(`${alertaNomina}
+
+  <div class="stats-grid">
     <div class="stat-card"><div class="stat-label">Partidos</div><div class="stat-value">${ps.length}</div></div>
     <div class="stat-card"><div class="stat-label">Victorias</div><div class="stat-value">${wins}</div></div>
     <div class="stat-card"><div class="stat-label">Empates</div><div class="stat-value gray">${draws}</div></div>
     <div class="stat-card"><div class="stat-label">Derrotas</div><div class="stat-value red">${losses}</div></div>
   </div>
+
+  ${proximo?`<div class="card">
+    <div class="card-header"><span class="card-title">🏟️ Próximo partido</span><span class="badge-small badge-blue-s">${proximo.cond||''}</span></div>
+    <div class="match-row" style="cursor:default;">
+      <div><div class="match-team-name">UCH ${proximo.equipo||''}</div><div class="match-team-cat">${proximo.cond||''}</div></div>
+      <div style="text-align:center;">
+        <div style="font-size:16px;font-weight:700;color:var(--blue);">vs ${proximo.rival}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">📅 ${proximo.fecha||'Por definir'}</div>
+        <div style="font-size:12px;color:var(--text-dim);">${proximo.hora?'🕐 '+proximo.hora+' hrs':''}</div>
+        <div style="font-size:12px;color:var(--text-dim);">${proximo.sede?'📍 '+proximo.sede:''}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:13px;font-weight:600;">${proximo.nomina?.length||0} convocadas</div>
+        <button class="btn" style="margin-top:6px;font-size:11px;" onclick="goPage('proximo')">Ver nómina</button>
+      </div>
+    </div>
+  </div>`:''}
+
   ${ult?`<div class="card">
-    <div class="card-header"><span class="card-title">Último partido</span>${badge(ult)}</div>
+    <div class="card-header"><span class="card-title">📅 Último partido</span>${badge(ult)}</div>
     <div class="match-row" style="cursor:default;">
       <div><div class="match-team-name">UCH ${ult.equipo}</div><div class="match-team-cat">${ult.cond||''}</div></div>
-      <div><div class="match-score-num">${ult.gUCH} – ${ult.gRival}</div><div class="match-score-date">${ult.fecha||''}</div></div>
+      <div><div class="match-score-num">${ult.gUCH} – ${ult.gRival}</div><div class="match-score-date">${ult.fecha||''} · ${ult.rival}</div></div>
       <div style="text-align:right;"><div class="match-team-name">${ult.rival}</div></div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:10px;">
-      ${isC?`<button class="btn btn-blue" onclick="goPage('pizarra')">🏑 Pizarra</button><button class="btn" onclick="goPage('votacion')">⭐ Ver votación</button>`
-           :`<button class="btn btn-blue" onclick="goPage('votacion')">⭐ Votar jugadora del partido</button><button class="btn" onclick="goPage('ficha')">👤 Mi ficha</button>`}
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+      ${isC
+        ?`<button class="btn btn-blue" onclick="goPage('pizarra')">🏑 Pizarra</button>
+           <button class="btn" onclick="goPage('votacion')">⭐ Votación</button>
+           <button class="btn" onclick="goPage('partidos')">📋 Ver todos</button>`
+        :`<button class="btn btn-blue" onclick="goPage('votacion')">⭐ Votar jugadora</button>
+           <button class="btn" onclick="goPage('ficha')">👤 Mi ficha</button>`}
     </div>
   </div>`:'<div class="card"><div class="empty-state">Aún no hay partidos registrados.</div></div>'}
+
+  ${top3.length>0?`<div class="card">
+    <div class="card-header">
+      <span class="card-title">⚽ Top goleadoras</span>
+      <span style="font-size:12px;color:var(--text-dim);">${totalGoles} goles en la temporada</span>
+    </div>
+    ${top3.map((j,i)=>{
+      const emojis=['🥇','🥈','🥉'];
+      return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-100);">
+        <div style="font-size:20px;width:28px;text-align:center;">${emojis[i]}</div>
+        <div class="avatar av-blue" style="width:30px;height:30px;font-size:11px;">${j.num}</div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;">${j.nombre||j.name||''}</div>
+          <div style="font-size:11px;color:var(--text-dim);">${j.pos||''} · ${j.equipo||''}</div>
+        </div>
+        <div style="font-size:22px;font-weight:700;color:var(--blue);">${j.goles}</div>
+      </div>`;}).join('')}
+    <button class="btn" style="margin-top:10px;width:100%;justify-content:center;" onclick="goPage('goleadoras')">Ver ranking completo ↗</button>
+  </div>`:''}
+
   ${isC?`<div class="card">
-    <div class="card-header"><span class="card-title">Acceso rápido</span></div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <button class="btn btn-blue" onclick="goPage('jugadoras')">➕ Agregar jugadora</button>
-      <button class="btn btn-blue" onclick="abrirNuevoPartido()">📅 Registrar partido</button>
-      <button class="btn btn-blue" onclick="abrirModalProximo()">🏟️ Publicar próximo partido</button>
-      <button class="btn" onclick="goPage('goleadoras')">⚽ Ver ranking</button>
-      <button class="btn" onclick="goPage('pizarra')">🏑 Pizarra táctica</button>
+    <div class="card-header"><span class="card-title">⚡ Acceso rápido</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <button class="btn btn-blue" onclick="goPage('jugadoras')" style="justify-content:center;">➕ Jugadoras</button>
+      <button class="btn btn-blue" onclick="abrirNuevoPartido()" style="justify-content:center;">📅 Partido</button>
+      <button class="btn btn-blue" onclick="abrirModalProximo()" style="justify-content:center;">🏟️ Próximo</button>
+      <button class="btn" onclick="goPage('pizarra')" style="justify-content:center;">🏑 Pizarra</button>
     </div>
   </div>`:''}`);}
+
+
 
 // ===== PARTIDOS =====
 function renderPartidos(){
