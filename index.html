@@ -179,7 +179,23 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .access-denied{text-align:center;padding:4rem 2rem;}
 .info-box{background:var(--blue-light);border:1px solid var(--blue);border-radius:var(--radius-md);padding:1rem;font-size:12px;color:var(--blue-dark);margin-bottom:1rem;line-height:1.6;}
 
-/* ===== MÓVIL RESPONSIVE ===== */
+/* PRÓXIMO PARTIDO */
+.proximo-banner{background:linear-gradient(135deg,var(--blue-dark),var(--blue));border-radius:var(--radius-md);padding:1.5rem;color:white;margin-bottom:1rem;}
+.proximo-vs{font-size:22px;font-weight:700;margin:8px 0;}
+.proximo-meta{font-size:13px;opacity:0.75;display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;}
+.proximo-meta span{display:flex;align-items:center;gap:5px;}
+.nomina-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.nomina-card{border:1px solid var(--gray-100);border-radius:var(--radius-md);padding:10px;display:flex;align-items:center;gap:8px;background:white;}
+.nomina-num{width:30px;height:30px;border-radius:50%;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.nomina-name{font-size:12px;font-weight:600;color:var(--text);line-height:1.2;}
+.nomina-pos{font-size:10px;color:var(--text-dim);}
+.nomina-check{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;font-size:12px;transition:all 0.15s;}
+.nomina-check:hover{border-color:var(--blue);background:var(--blue-light);}
+.nomina-check.sel{border-color:var(--blue);background:var(--blue-light);font-weight:600;}
+.nomina-check input{accent-color:var(--blue);}
+.empty-proximo{text-align:center;padding:3rem;color:var(--text-dim);}
+
+/* MÓVIL RESPONSIVE ===== */
 /* Botón hamburguesa */
 .hamburger{display:none;background:none;border:none;cursor:pointer;padding:6px;border-radius:var(--radius-sm);}
 .hamburger span{display:block;width:22px;height:2px;background:var(--text);margin:5px 0;border-radius:2px;transition:all 0.25s;}
@@ -245,6 +261,10 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
   .ficha-stats-row{grid-template-columns:repeat(3,1fr);gap:8px;}
   .ficha-stat{padding:0.75rem;}
   .ficha-stat-val{font-size:22px;}
+
+  /* NÓMINA MÓVIL */
+  .nomina-grid{grid-template-columns:1fr 1fr;}
+  #pp-nomina-grid{grid-template-columns:1fr!important;}
 
   /* PIZARRA */
   .pizarra-layout{flex-direction:column;height:auto;}
@@ -314,6 +334,7 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
     <div class="nav-section">Principal</div>
     <div class="nav-item active" id="nav-home" onclick="goPage('home')">🏠 Resumen</div>
     <div class="nav-item" id="nav-partidos" onclick="goPage('partidos')">📅 Partidos</div>
+    <div class="nav-item" id="nav-proximo" onclick="goPage('proximo')">🏟️ Próximo partido</div>
     <div class="nav-section">Mi espacio</div>
     <div class="nav-item" id="nav-ficha" onclick="goPage('ficha')">👤 Mi ficha</div>
     <div class="nav-item" id="nav-votacion" onclick="goPage('votacion')">⭐ Votación</div>
@@ -371,6 +392,45 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modalPartido')">Cancelar</button>
       <button class="btn btn-blue" id="btnSavePartido" onclick="guardarPartido()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PRÓXIMO PARTIDO -->
+<div class="modal-overlay" id="modalProximo">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Publicar próximo partido</div>
+      <button class="modal-close" onclick="closeModal('modalProximo')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Equipo UCH</label>
+        <select class="form-input" id="pp-equipo"><option>Damas A</option><option>Damas B</option><option>Sub-18</option></select></div>
+      <div class="form-group"><label class="form-label">Rival</label>
+        <input class="form-input" id="pp-rival" placeholder="Ej: PUC"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Fecha</label>
+        <input class="form-input" type="date" id="pp-fecha"/></div>
+      <div class="form-group"><label class="form-label">Hora</label>
+        <input class="form-input" type="time" id="pp-hora"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Sede</label>
+        <input class="form-input" id="pp-sede" placeholder="Cancha Principal UCH"/></div>
+      <div class="form-group"><label class="form-label">Condición</label>
+        <select class="form-input" id="pp-cond"><option>Local</option><option>Visita</option></select></div>
+    </div>
+    <div class="form-group" style="margin-bottom:8px;">
+      <label class="form-label">Nómina — selecciona hasta 15 jugadoras</label>
+      <div id="pp-nomina-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:260px;overflow-y:auto;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);padding:8px;"></div>
+    </div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">
+      Seleccionadas: <span id="pp-count" style="font-weight:700;color:var(--blue);">0</span> / 15
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modalProximo')">Cancelar</button>
+      <button class="btn btn-blue" id="btnSaveProximo" onclick="guardarProximo()">Publicar</button>
     </div>
   </div>
 </div>
@@ -506,6 +566,7 @@ function showApp(){
 // ===== NAVEGACIÓN =====
 const PMETA={
   home:['Resumen','Panel principal'],partidos:['Partidos','Historial de encuentros'],
+  proximo:['Próximo partido','Información y nómina'],
   ficha:['Mi ficha','Estadísticas personales'],votacion:['Votación','Jugadora del partido'],
   equipos:['Equipos','Gestión de equipos'],jugadoras:['Jugadoras','Registro de jugadoras'],
   pizarra:['Pizarra táctica','Hockey seven a side — 7v7']
@@ -517,7 +578,7 @@ window.goPage=function(page){
   const m=PMETA[page]||['—','—'];
   document.getElementById('topbarTitle').textContent=m[0];
   document.getElementById('topbarSub').textContent=m[1];
-  ({home:renderHome,partidos:renderPartidos,ficha:renderFicha,votacion:renderVotacion,
+  ({home:renderHome,partidos:renderPartidos,proximo:renderProximo,ficha:renderFicha,votacion:renderVotacion,
     equipos:renderEquipos,jugadoras:renderJugadoras,pizarra:renderPizarra})[page]?.();
 };
 
@@ -554,6 +615,7 @@ async function renderHome(){
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <button class="btn btn-blue" onclick="goPage('jugadoras')">➕ Agregar jugadora</button>
       <button class="btn btn-blue" onclick="abrirNuevoPartido()">📅 Registrar partido</button>
+      <button class="btn btn-blue" onclick="abrirModalProximo()">🏟️ Publicar próximo partido</button>
       <button class="btn" onclick="goPage('pizarra')">🏑 Pizarra táctica</button>
     </div>
   </div>`:''}`);}
@@ -629,6 +691,159 @@ window.guardarPartido=async function(){
     closeModal('modalPartido');
   }catch(e){toast('Error al guardar','error');}
   btn.disabled=false;
+};
+
+// ===== PRÓXIMO PARTIDO =====
+async function renderProximo(){
+  set('<div class="loading-card">Cargando...</div>');
+  const snap=await getDoc(doc(db,'config','proximoPartido'));
+  const isC=ROLE==='coach';
+  if(!snap.exists()||!snap.data().rival){
+    set(`<div class="card">
+      <div class="empty-proximo">
+        <div style="font-size:48px;margin-bottom:12px;">🏑</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;">Sin partido publicado</div>
+        <div style="color:var(--text-dim);margin-bottom:${isC?'1.25rem':'0'};">Aún no hay información del próximo partido.</div>
+        ${isC?`<button class="btn btn-blue" onclick="abrirModalProximo()">+ Publicar próximo partido</button>`:''}
+      </div>
+    </div>`);
+    return;
+  }
+  const p=snap.data();
+  const nomina=p.nomina||[];
+  // Formatear fecha
+  let fechaStr=p.fecha||'';
+  if(fechaStr){const d=new Date(fechaStr+'T12:00:00');fechaStr=d.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}
+  // Formatear hora
+  let horaStr=p.hora?p.hora+' hrs':'';
+  set(`
+    <div class="proximo-banner">
+      <div style="font-size:11px;font-weight:600;opacity:0.6;text-transform:uppercase;letter-spacing:0.08em;">Próximo partido · UCH ${p.equipo||''}</div>
+      <div class="proximo-vs">UCH ${p.equipo||''} vs ${p.rival}</div>
+      <div class="proximo-meta">
+        <span>📅 ${fechaStr}</span>
+        ${horaStr?`<span>🕐 ${horaStr}</span>`:''}
+        <span>📍 ${p.sede||''}</span>
+        <span>${p.cond==='Local'?'🏠 Local':'✈️ Visita'}</span>
+      </div>
+      ${isC?`<div style="margin-top:1rem;display:flex;gap:8px;">
+        <button class="btn" style="background:rgba(255,255,255,0.15);color:white;border-color:rgba(255,255,255,0.3);" onclick="abrirModalProximo()">✏️ Editar</button>
+        <button class="btn" style="background:rgba(255,255,255,0.1);color:white;border-color:rgba(255,255,255,0.2);" onclick="eliminarProximo()">🗑️ Quitar</button>
+      </div>`:''}
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🎽 Nómina convocada</span>
+        <span class="badge-small badge-blue-s">${nomina.length} jugadoras</span>
+      </div>
+      ${nomina.length===0
+        ? `<div class="empty-state">${isC?'No has publicado la nómina aún.':'La nómina aún no ha sido publicada.'}</div>`
+        : `<div class="nomina-grid" id="nominaGrid"></div>`}
+    </div>`);
+
+  if(nomina.length>0){
+    // Cargar datos de jugadoras nominadas
+    const snapJ=await getDocs(collection(db,'jugadoras'));
+    const todas=snapJ.docs.map(d=>({id:d.id,...d.data()}));
+    const nominadas=nomina.map(uid=>todas.find(j=>j.id===uid||j.uid===uid)).filter(Boolean);
+    const grid=document.getElementById('nominaGrid');
+    if(grid){
+      grid.innerHTML=nominadas.map((j,i)=>`
+        <div class="nomina-card">
+          <div class="nomina-num">${j.num||i+1}</div>
+          <div>
+            <div class="nomina-name">${j.nombre||j.name||''}</div>
+            <div class="nomina-pos">${j.pos||''}</div>
+          </div>
+        </div>`).join('');
+    }
+  }
+}
+
+window.abrirModalProximo=async function(){
+  // Cargar jugadoras
+  const snap=await getDocs(collection(db,'jugadoras'));
+  const jugadoras=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>parseInt(a.num)-parseInt(b.num));
+  // Cargar datos actuales si existen
+  const snapP=await getDoc(doc(db,'config','proximoPartido'));
+  const actual=snapP.exists()?snapP.data():{};
+  const nominaActual=actual.nomina||[];
+  if(actual.rival) document.getElementById('pp-rival').value=actual.rival;
+  if(actual.fecha) document.getElementById('pp-fecha').value=actual.fecha;
+  if(actual.hora)  document.getElementById('pp-hora').value=actual.hora;
+  if(actual.sede)  document.getElementById('pp-sede').value=actual.sede;
+  if(actual.equipo)document.getElementById('pp-equipo').value=actual.equipo;
+  if(actual.cond)  document.getElementById('pp-cond').value=actual.cond;
+  // Renderizar grid de selección
+  const grid=document.getElementById('pp-nomina-grid');
+  grid.innerHTML=jugadoras.map(j=>`
+    <label class="nomina-check${nominaActual.includes(j.id)?' sel':''}" id="lbl-${j.id}">
+      <input type="checkbox" value="${j.id}" ${nominaActual.includes(j.id)?'checked':''}
+        onchange="toggleNomina('${j.id}',this.checked)" style="display:none;"/>
+      <div class="nomina-num" style="width:24px;height:24px;font-size:10px;">${j.num}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${j.nombre||j.name||''}</div>
+        <div style="font-size:10px;color:var(--text-dim);">${j.pos||''}</div>
+      </div>
+      ${nominaActual.includes(j.id)?'<span style="color:var(--blue);font-size:14px;">✓</span>':'<span style="color:transparent;font-size:14px;">✓</span>'}
+    </label>`).join('');
+  updateNominaCount();
+  openModal('modalProximo');
+};
+
+window.toggleNomina=function(id,checked){
+  const lbl=document.getElementById('lbl-'+id);
+  const chk=document.querySelector(`#pp-nomina-grid input[value="${id}"]`);
+  // Máximo 15
+  const seleccionadas=document.querySelectorAll('#pp-nomina-grid input:checked').length;
+  if(checked&&seleccionadas>15){
+    if(chk)chk.checked=false;
+    toast('Máximo 15 jugadoras en la nómina','error');return;
+  }
+  if(lbl){
+    lbl.classList.toggle('sel',checked);
+    const tick=lbl.querySelector('span:last-child');
+    if(tick)tick.style.color=checked?'var(--blue)':'transparent';
+  }
+  updateNominaCount();
+};
+
+function updateNominaCount(){
+  const n=document.querySelectorAll('#pp-nomina-grid input:checked').length;
+  const el=document.getElementById('pp-count');
+  if(el)el.textContent=n;
+}
+
+window.guardarProximo=async function(){
+  const rival=document.getElementById('pp-rival').value.trim();
+  if(!rival){toast('Ingresa el nombre del rival','error');return;}
+  const nomina=Array.from(document.querySelectorAll('#pp-nomina-grid input:checked')).map(c=>c.value);
+  const btn=document.getElementById('btnSaveProximo');
+  btn.disabled=true;btn.innerHTML='<span class="spinner-inline"></span>Publicando...';
+  try{
+    await setDoc(doc(db,'config','proximoPartido'),{
+      equipo:document.getElementById('pp-equipo').value,
+      rival,
+      fecha:document.getElementById('pp-fecha').value,
+      hora:document.getElementById('pp-hora').value,
+      sede:document.getElementById('pp-sede').value.trim(),
+      cond:document.getElementById('pp-cond').value,
+      nomina,
+      updatedAt:serverTimestamp()
+    });
+    toast('¡Próximo partido publicado!');
+    closeModal('modalProximo');
+    renderProximo();
+  }catch(e){toast('Error al publicar','error');}
+  btn.disabled=false;btn.innerHTML='Publicar';
+};
+
+window.eliminarProximo=async function(){
+  if(!confirm('¿Quitar la publicación del próximo partido?'))return;
+  await deleteDoc(doc(db,'config','proximoPartido'));
+  toast('Partido eliminado');
+  renderProximo();
 };
 
 // ===== FICHA =====
