@@ -579,6 +579,7 @@ onAuthStateChanged(auth,async user=>{
     ROLE=MEDATA.role||'player';
     showApp();
     goPage('home');
+    setTimeout(()=>initNotificaciones(), 2000);
   } else {
     ME=null;ROLE=null;MEDATA=null;
     showLogin();
@@ -1177,6 +1178,12 @@ window.guardarProximo=async function(){
     });
     toast('¡Próximo partido publicado!');
     closeModal('modalProximo');
+    // Notificar a jugadoras si hay nómina
+    if(nomina.length>0){
+      const rival=document.getElementById('pp-rival').value.trim();
+      const fecha=document.getElementById('pp-fecha').value;
+      await enviarNotificacionNomina(rival, fecha);
+    }
     renderProximo();
   }catch(e){toast('Error al publicar','error');}
   btn.disabled=false;btn.innerHTML='Publicar';
@@ -1698,6 +1705,58 @@ if('serviceWorker' in navigator){
       .catch(e=>console.log('SW error:', e));
   });
 }
+
+// ===== NOTIFICACIONES PUSH (FCM) =====
+const VAPID_KEY = 'BBrlU3EJbmIiiPQnXdWaSOpkZWUAQ7neiBxitliGTQV3cmm620KSoFSDZHagjZqwvHCetVO_W2bkTGe05JOFQdU';
+
+async function initNotificaciones(){
+  try {
+    const { getMessaging, getToken, onMessage } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js');
+    const messaging = getMessaging(fbApp);
+
+    // Pedir permiso
+    const permission = await Notification.requestPermission();
+    if(permission !== 'granted'){ console.log('Notificaciones no permitidas'); return; }
+
+    // Obtener token del dispositivo
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+    if(token){
+      // Guardar token en Firestore asociado al usuario
+      await setDoc(doc(db,'tokens',ME.uid), {
+        token,
+        uid: ME.uid,
+        nombre: MEDATA?.nombre||ME.email,
+        role: ROLE,
+        updatedAt: serverTimestamp()
+      });
+      console.log('Token FCM guardado');
+    }
+
+    // Recibir notificaciones con app abierta
+    onMessage(messaging, payload => {
+      const { title, body } = payload.notification||{};
+      showToast(`🔔 ${title}: ${body}`);
+    });
+
+  } catch(e){ console.log('FCM no disponible:', e); }
+}
+
+// Enviar notificación a todas las jugadoras (solo coach)
+window.enviarNotificacionNomina = async function(rival, fecha){
+  try {
+    const snapT = await getDocs(collection(db,'tokens'));
+    const tokens = snapT.docs.map(d=>d.data()).filter(t=>t.role==='player');
+    // Guardar notificación pendiente en Firestore para que el SW la procese
+    await addDoc(collection(db,'notificaciones'),{
+      title: '🎽 ¡Nómina publicada!',
+      body: `Revisa si estás convocada para el partido vs ${rival} · ${fecha}`,
+      tipo: 'nomina',
+      fecha: serverTimestamp(),
+      leida: false
+    });
+    toast(`Notificación enviada a ${tokens.length} jugadoras`);
+  } catch(e){ console.log('Error enviando notificación:', e); }
+};
 </script>
 </body>
 </html>
